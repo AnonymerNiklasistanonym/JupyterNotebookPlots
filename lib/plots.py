@@ -24,7 +24,7 @@ class GenericPlotConfigurationParams(TypedDict):
 
 class GenericPlotShowExportParams(TypedDict):
     draw_legend: NotRequired[str]
-    output_file_name_pdf: NotRequired[str]
+    output_file_name: NotRequired[str]
     show: NotRequired[bool]
     """True is the default"""
 
@@ -80,8 +80,8 @@ def _plot_generic_show_export(plot: plt, **kwargs: Unpack[GenericPlotShowExportP
         # Add legend
         plot.legend(loc=kwargs["draw_legend"])
     # Optionally save the plot in a file:
-    if kwargs.get("output_file_name_pdf", None):
-        plot.savefig(kwargs["output_file_name_pdf"])
+    if kwargs.get("output_file_name", None):
+        plot.savefig(kwargs["output_file_name"])
     # Optionally draw the plot
     if kwargs.get("show", True):
         plot.show()
@@ -198,7 +198,7 @@ def plot_random_variable_distribution_function(
     """
     # Configure plot (required)
     kwargs.setdefault("title", "Verteilungsfunktion $F^X$")
-    kwargs.setdefault("x_label", "$x \in X(\Omega)$")
+    kwargs.setdefault("x_label", "$x \\in X(\\Omega)$")
     kwargs.setdefault("y_label", "$F^X(x) = \\mathbb{P}(X \\leq x)$")
     if data_col_x_name is None:
         data_col_x_name = kwargs["x_label"]
@@ -300,7 +300,7 @@ def plot_random_variable_constant_distribution_function(
     """
     # Configure plot (required)
     kwargs.setdefault("title", "Konstante Verteilungsfunktion $F^X$")
-    kwargs.setdefault("x_label", "$x \in X(\Omega)$")
+    kwargs.setdefault("x_label", "$x \\in X(\\Omega)$")
     kwargs.setdefault("y_label", "$F^X(x) = \\mathbb{P}(X \\leq x)$")
     if data_col_x_name is None:
         data_col_x_name = kwargs["x_label"]
