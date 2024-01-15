@@ -46,7 +46,7 @@ def convert_float_to_latex_frac_approx_str(
 
 def convert_pd_df_cols_float_to_latex_str(
     pd_df: pd.DataFrame, cols: list[str], num_decimal_places=4
-) -> str:
+) -> pd.DataFrame:
     for col in cols:
         pd_df[col] = [
             f"${convert_float_to_latex_frac_approx_str(x, num_decimal_places)}$"

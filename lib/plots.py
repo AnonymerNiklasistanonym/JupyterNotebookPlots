@@ -20,6 +20,9 @@ class GenericPlotConfigurationParams(TypedDict):
     fraction_x_ticks: NotRequired[bool]
     fraction_y_ticks: NotRequired[bool]
     draw_grid: NotRequired[bool]
+    draw_x_grid: NotRequired[bool]
+    draw_y_grid: NotRequired[bool]
+    notes: NotRequired[list[tuple[float, float, str, NotRequired[str]]]]
 
 
 class GenericPlotShowExportParams(TypedDict):
@@ -33,8 +36,8 @@ class GenericPlotParams(GenericPlotConfigurationParams, GenericPlotShowExportPar
     pass
 
 
-def remove_duplicates_list[t](generic_list: list[t]) -> list[t]:
-    new_list: list[t] = []
+def remove_duplicates_list(generic_list: list) -> list:
+    new_list: list = []
     for generic_list_element in generic_list:
         if generic_list_element not in new_list:
             if isinstance(generic_list_element, Fraction):
@@ -75,11 +78,32 @@ def _plot_generic_configuration(plot: plt, **kwargs: Unpack[GenericPlotParams]):
         plot.gca().yaxis.set_major_formatter(
             FuncFormatter(lambda x, y: str(Fraction(x).limit_denominator()))
         )
+    # > Optionally draw notes
+    if kwargs.get("notes", []):
+        for note_x, note_y, note_text, note_color in kwargs["notes"]:
+            if note_color:
+                plt.plot(note_x, note_y, "o", c=note_color)
+            plt.annotate(
+                note_text,  # this is the text
+                (note_x, note_y),  # these are the coordinates to position the label
+                textcoords="offset points",  # how to position the text
+                xytext=(10, 0),
+                ha="left",
+            )
     # > Optionally draw a grid
     if kwargs.get("draw_grid", False):
         # Keep the grid behind the bars
         plot.gca().set_axisbelow(True)
         plot.grid(True)
+    else:
+        if kwargs.get("draw_x_grid", False):
+            # Keep the grid behind the bars
+            plot.gca().set_axisbelow(True)
+            plt.gca().xaxis.grid(True)
+        if kwargs.get("draw_y_grid", False):
+            # Keep the grid behind the bars
+            plot.gca().set_axisbelow(True)
+            plt.gca().yaxis.grid(True)
 
 
 def _plot_generic_show_export(plot: plt, **kwargs: Unpack[GenericPlotShowExportParams]):
@@ -102,8 +126,8 @@ def plot_random_variable_distribution(
     data: dict[float, float],
     bar_color="blue",
     bar_width=0.1,
-    data_col_x_name: str = None,
-    data_col_p_x_eq_x_name: str = None,
+    data_col_x_name: Optional[str] = None,
+    data_col_p_x_eq_x_name: Optional[str] = None,
     draw_only_data_x_ticks=False,
     draw_only_data_y_ticks=False,
     **kwargs: Unpack[GenericPlotParams],
@@ -159,7 +183,7 @@ def plot_random_variable_distribution(
     if draw_only_data_y_ticks:
         kwargs.setdefault("custom_y_ticks", [0, *data_pd[data_col_p_x_eq_x_name]])
     kwargs.setdefault("integer_x_ticks", True)
-    kwargs.setdefault("draw_fractions", True)
+    kwargs.setdefault("fraction_y_ticks", True)
     kwargs.setdefault("draw_grid", True)
     _plot_generic_configuration(plot=plt, **kwargs)
     # Plot data
@@ -176,9 +200,9 @@ def plot_random_variable_distribution(
 
 def plot_random_variable_distribution_function(
     data: dict[int, float],
-    data_col_x_name: str = None,
-    data_col_p_x_eq_x_name: str = None,
-    data_col_p_x_leq_x_name: str = None,
+    data_col_x_name: Optional[str] = None,
+    data_col_p_x_eq_x_name: Optional[str] = None,
+    data_col_p_x_leq_x_name: Optional[str] = None,
     draw_only_data_x_ticks=False,
     draw_only_data_y_ticks=False,
     line_color="blue",
@@ -288,10 +312,11 @@ def plot_random_variable_constant_distribution_function(
     data_func: Callable[[float], float],
     data_range: tuple[float, float],
     data_samples=10000,
+    data_remove_data_points: Optional[Callable[[float], bool]] = None,
     line_color="red",
     line_width=2,
-    data_col_x_name: str = None,
-    data_col_p_x_leq_x_name: str = None,
+    data_col_x_name: Optional[str] = None,
+    data_col_p_x_leq_x_name: Optional[str] = None,
     data_return=False,
     **kwargs: Unpack[GenericPlotParams],
 ) -> Optional[pd.DataFrame]:
@@ -311,7 +336,7 @@ def plot_random_variable_constant_distribution_function(
     """
     # Configure plot (required)
     kwargs.setdefault("title", "Konstante Verteilungsfunktion $F^X$")
-    kwargs.setdefault("x_label", "$x \\in X(\\Omega)$")
+    kwargs.setdefault("x_label", "$x$")
     kwargs.setdefault("y_label", "$F^X(x) = \\mathbb{P}(X \\leq x)$")
     if data_col_x_name is None:
         data_col_x_name = kwargs["x_label"]
@@ -319,6 +344,9 @@ def plot_random_variable_constant_distribution_function(
         data_col_p_x_leq_x_name = kwargs["y_label"]
     # Create data
     x = np.linspace(data_range[0], data_range[-1], data_samples)
+    # Optionally remove some data points
+    if data_remove_data_points:
+        x = np.array([x_i if not data_remove_data_points(x_i) else np.nan for x_i in x])
     y = [data_func(x_i) for x_i in x]
     # Configure generic plot options
     kwargs.setdefault("draw_grid", True)
@@ -334,6 +362,7 @@ def plot_random_variable_constant_distribution_function(
         return pd.DataFrame(
             data={data_col_x_name: x, data_col_p_x_leq_x_name: y}
         ).sort_values(by=[data_col_x_name], ascending=True)
+    return None
 
 
 def scatter_plot(
@@ -356,3 +385,64 @@ def scatter_plot(
     # Configure generic plot show/export options
     # type: ignore[misc]
     _plot_generic_show_export(plt, **kwargs)
+
+
+def plot_boxplot(
+    data_list: list[tuple[list[float], NotRequired[str], str]],
+    whis: NotRequired[tuple[float, float]] = None,
+    **kwargs: Unpack[GenericPlotParams],
+):
+    """
+    Draw boxplot.
+    """
+    # Configure generic plot options
+    kwargs.setdefault("title", "Boxplot")
+    kwargs.setdefault("x_label", "")
+    kwargs.setdefault("y_label", "")
+    kwargs.setdefault("draw_y_grid", True)
+    _plot_generic_configuration(plt, **kwargs)
+    # Plot data
+    bplots = plt.boxplot(
+        [data for data, _, __ in data_list],
+        vert=True,
+        patch_artist=True,
+        labels=[label for _, __, label in data_list],
+        whis=whis,
+    )
+    for patch, color in zip(bplots["boxes"], [color for _, color, __ in data_list]):
+        if color is not None:
+            patch.set_facecolor(color)
+    # Show/export plot and return the data
+    _plot_generic_show_export(plt, **kwargs)
+
+
+def plot_lorentz_curve(
+    data: list[float],
+    line_color="blue",
+    **kwargs: Unpack[GenericPlotParams],
+):
+    """
+    Draw lorentz curve.
+    """
+    # Configure generic plot options
+    kwargs.setdefault("title", "Lorentzkurve")
+    kwargs.setdefault("x_label", "$u_j$")
+    kwargs.setdefault("y_label", "$v_j$")
+    kwargs.setdefault("draw_grid", True)
+    _plot_generic_configuration(plt, **kwargs)
+    # Create data
+    sorted_data = sorted(data)
+    data_pd = pd.DataFrame(
+        data={
+            "sorted data": [0] + sorted_data,
+            "$j$": [0] + [j + 1 for j, _ in enumerate(data)],
+            "$u_j$": [0] + [(j + 1) / len(data) for j, _ in enumerate(data)],
+            "$v_j$": [0]
+            + [sum(sorted_data[0 : j + 1]) / sum(data) for j, _ in enumerate(data)],
+        }
+    )
+    # Plot data
+    plt.plot(data_pd["$u_j$"], data_pd["$v_j$"], marker="o", color=line_color)
+    # Show/export plot and return the data
+    _plot_generic_show_export(plt, **kwargs)
+    return data_pd
