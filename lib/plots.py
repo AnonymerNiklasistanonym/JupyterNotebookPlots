@@ -22,6 +22,7 @@ class GenericPlotConfigurationParams(TypedDict):
     draw_grid: NotRequired[bool]
     draw_x_grid: NotRequired[bool]
     draw_y_grid: NotRequired[bool]
+    lines: NotRequired[list[tuple[float, float, float, float, str]]]
     notes: NotRequired[list[tuple[float, float, str, NotRequired[str]]]]
 
 
@@ -78,6 +79,10 @@ def _plot_generic_configuration(plot: plt, **kwargs: Unpack[GenericPlotParams]):
         plot.gca().yaxis.set_major_formatter(
             FuncFormatter(lambda x, y: str(Fraction(x).limit_denominator()))
         )
+    # > Optionally draw lines
+    if kwargs.get("lines", []):
+        for line_x1, line_y1, line_x2, line_y2, line_color in kwargs["lines"]:
+            plt.plot([line_x1, line_x2], [line_y1, line_y2], "-", c=line_color)
     # > Optionally draw notes
     if kwargs.get("notes", []):
         for note_x, note_y, note_text, note_color in kwargs["notes"]:
